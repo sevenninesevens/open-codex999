@@ -301,8 +301,7 @@ You can also define custom instructions:
 Additionally, any Markdown placed at `RAG.md` in the repository root will be
 loaded automatically for every session. The legacy location
 `~/.codex/rag/RAG.md` is also supported. Put your RAG context in one of these
-locations and Codex will merge it with the other instructions. The full file is
-loaded without any size limit.
+
 
 ### Alternative AI Providers
 
