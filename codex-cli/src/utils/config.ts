@@ -29,6 +29,8 @@ export const CONFIG_YML_FILEPATH = join(CONFIG_DIR, "config.yml");
 // work unchanged.
 export const CONFIG_FILEPATH = CONFIG_JSON_FILEPATH;
 export const INSTRUCTIONS_FILEPATH = join(CONFIG_DIR, "instructions.md");
+// If present, this file is automatically appended to the user's instructions.
+export const RAG_FILEPATH = join(CONFIG_DIR, "rag", "RAG.md");
 
 export const OPENAI_TIMEOUT_MS =
   parseInt(process.env["OPENAI_TIMEOUT_MS"] || "0", 10) || undefined;
@@ -288,6 +290,11 @@ export const loadInstructions = (
     ? readFileSync(instructionsFilePathResolved, "utf-8")
     : DEFAULT_INSTRUCTIONS;
 
+  // Additional RAG instructions are loaded from RAG_FILEPATH if present.
+  const ragInstructions = existsSync(RAG_FILEPATH)
+    ? readFileSync(RAG_FILEPATH, "utf-8")
+    : "";
+
   // Project doc support.
   const shouldLoadProjectDoc =
     !options.disableProjectDoc &&
@@ -314,7 +321,11 @@ export const loadInstructions = (
     }
   }
 
-  const combinedInstructions = [userInstructions, projectDoc]
+  const baseInstructions = [userInstructions, ragInstructions]
+    .filter((s) => s && s.trim() !== "")
+    .join("\n\n");
+
+  const combinedInstructions = [baseInstructions, projectDoc]
     .filter((s) => s && s.trim() !== "")
     .join("\n\n--- project-doc ---\n\n");
 
