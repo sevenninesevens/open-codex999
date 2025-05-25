@@ -30,6 +30,7 @@ export const CONFIG_YML_FILEPATH = join(CONFIG_DIR, "config.yml");
 export const CONFIG_FILEPATH = CONFIG_JSON_FILEPATH;
 export const INSTRUCTIONS_FILEPATH = join(CONFIG_DIR, "instructions.md");
 // If present, this file is automatically appended to the user's instructions.
+// The entire file is loaded with no size limit.
 export const RAG_FILEPATH = join(CONFIG_DIR, "rag", "RAG.md");
 // Name of the repository-level RAG file. If present at the Git root it will be
 // loaded automatically for every session.
