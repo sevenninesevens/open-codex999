@@ -366,7 +366,7 @@ export const loadInstructions = (
     }
   }
 
-  const baseInstructions = [userInstructions, ragInstructions]
+  const baseInstructions = [ragInstructions, userInstructions]
     .filter((s) => s && s.trim() !== "")
     .join("\n\n");
 
