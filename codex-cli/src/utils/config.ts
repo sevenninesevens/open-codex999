@@ -29,6 +29,10 @@ export const CONFIG_YML_FILEPATH = join(CONFIG_DIR, "config.yml");
 // work unchanged.
 export const CONFIG_FILEPATH = CONFIG_JSON_FILEPATH;
 export const INSTRUCTIONS_FILEPATH = join(CONFIG_DIR, "instructions.md");
+// If present, this file is automatically appended to the user's instructions.
+export const RAG_FILEPATH = join(CONFIG_DIR, "rag", "RAG.md");
+// Backwards compatibility: check for RAG.md directly under ~/.codex as well.
+export const LEGACY_RAG_FILEPATH = join(CONFIG_DIR, "RAG.md");
 
 export const OPENAI_TIMEOUT_MS =
   parseInt(process.env["OPENAI_TIMEOUT_MS"] || "0", 10) || undefined;
@@ -186,6 +190,8 @@ export const PROJECT_DOC_MAX_BYTES = 32 * 1024; // 32 kB
 
 const PROJECT_DOC_FILENAMES = ["codex.md", ".codex.md", "CODEX.md"];
 
+const RAG_FILENAMES = ["RAG.md", "rag.md"]; // repo-level rag instructions
+
 export function discoverProjectDocPath(startDir: string): string | null {
   const cwd = resolvePath(startDir);
 
@@ -217,6 +223,38 @@ export function discoverProjectDocPath(startDir: string): string | null {
     const parent = dirname(dir);
     if (parent === dir) {
       // Reached filesystem root without finding Git.
+      return null;
+    }
+    dir = parent;
+  }
+}
+
+export function discoverRagPath(startDir: string): string | null {
+  const cwd = resolvePath(startDir);
+
+  for (const name of RAG_FILENAMES) {
+    const direct = join(cwd, name);
+    if (existsSync(direct)) {
+      return direct;
+    }
+  }
+
+  let dir = cwd;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const gitPath = join(dir, ".git");
+    if (existsSync(gitPath)) {
+      for (const name of RAG_FILENAMES) {
+        const candidate = join(dir, name);
+        if (existsSync(candidate)) {
+          return candidate;
+        }
+      }
+      return null;
+    }
+
+    const parent = dirname(dir);
+    if (parent === dir) {
       return null;
     }
     dir = parent;
@@ -288,6 +326,37 @@ export const loadInstructions = (
     ? readFileSync(instructionsFilePathResolved, "utf-8")
     : DEFAULT_INSTRUCTIONS;
 
+  // Additional RAG instructions loaded from ~/.codex/rag/RAG.md or similar
+  let ragPath: string | null = null;
+  if (existsSync(RAG_FILEPATH)) {
+    ragPath = RAG_FILEPATH;
+  } else if (existsSync(LEGACY_RAG_FILEPATH)) {
+    ragPath = LEGACY_RAG_FILEPATH;
+  } else {
+    const cwd = options.cwd ?? process.cwd();
+    ragPath = discoverRagPath(cwd);
+  }
+
+  let ragInstructions = "";
+  if (ragPath && existsSync(ragPath)) {
+    try {
+      ragInstructions = readFileSync(ragPath, "utf-8");
+      // eslint-disable-next-line no-console
+      console.log(`[codex] Loaded RAG instructions from ${ragPath}`);
+      if (isLoggingEnabled()) {
+        log(
+          `[codex] Loaded RAG instructions from ${ragPath} (${ragInstructions.length} bytes)`,
+        );
+      }
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn(`codex: failed to read RAG instructions at ${ragPath}`);
+    }
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`[codex] No RAG instructions found`);
+  }
+
   // Project doc support.
   const shouldLoadProjectDoc =
     !options.disableProjectDoc &&
@@ -314,7 +383,11 @@ export const loadInstructions = (
     }
   }
 
-  const combinedInstructions = [userInstructions, projectDoc]
+  const baseInstructions = [userInstructions, ragInstructions]
+    .filter((s) => s && s.trim() !== "")
+    .join("\n\n");
+
+  const combinedInstructions = [baseInstructions, projectDoc]
     .filter((s) => s && s.trim() !== "")
     .join("\n\n--- project-doc ---\n\n");
 

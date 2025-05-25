@@ -188,8 +188,10 @@ Key flags: `--model/-m`, `--approval-mode/-a`, and `--quiet/-q`.
 Codex merges Markdown instructions in this order:
 
 1. `~/.codex/instructions.md` – personal global guidance
-2. `codex.md` at repo root – shared project notes
-3. `codex.md` in cwd – sub‑package specifics
+2. `~/.codex/rag/RAG.md` (or `~/.codex/RAG.md`) – automatically loaded RAG context
+3. `RAG.md` in the repo root – if present
+4. `codex.md` at repo root – shared project notes
+5. `codex.md` in cwd – sub‑package specifics
 
 Disable with `--no-project-doc` or `CODEX_DISABLE_PROJECT_DOC=1`.
 
@@ -296,6 +298,11 @@ You can also define custom instructions:
 - Always respond with emojis
 - Only use git commands if I explicitly mention you should
 ```
+
+Additionally, any Markdown placed at `~/.codex/rag/RAG.md` or `~/.codex/RAG.md`
+will be loaded automatically for every session. Codex also looks for `RAG.md`
+in your repository's root. The CLI prints a short message indicating whether the
+RAG file was found.
 
 ### Alternative AI Providers
 
