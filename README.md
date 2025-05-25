@@ -187,8 +187,8 @@ Key flags: `--model/-m`, `--approval-mode/-a`, and `--quiet/-q`.
 
 Codex merges Markdown instructions in this order:
 
-1. `~/.codex/instructions.md` – personal global guidance
-2. `~/.codex/rag/RAG.md` – automatically loaded RAG context
+1. `RAG.md` at the repository root (or `~/.codex/rag/RAG.md`) – automatically loaded RAG context
+2. `~/.codex/instructions.md` – personal global guidance
 3. `codex.md` at repo root – shared project notes
 4. `codex.md` in cwd – sub‑package specifics
 
@@ -298,9 +298,10 @@ You can also define custom instructions:
 - Only use git commands if I explicitly mention you should
 ```
 
-Additionally, any Markdown placed at `~/.codex/rag/RAG.md` will be loaded
-automatically for every session. Put your RAG context here and Codex will merge
-it with the other instructions.
+Additionally, any Markdown placed at `RAG.md` in the repository root will be
+loaded automatically for every session. The legacy location
+`~/.codex/rag/RAG.md` is also supported. Put your RAG context in one of these
+locations and Codex will merge it with the other instructions.
 
 ### Alternative AI Providers
 
