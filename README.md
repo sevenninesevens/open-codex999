@@ -187,8 +187,7 @@ Key flags: `--model/-m`, `--approval-mode/-a`, and `--quiet/-q`.
 
 Codex merges Markdown instructions in this order:
 
-1. `RAG.md` at the repository root (or `~/.codex/rag/RAG.md`) – automatically loaded RAG context
-2. `~/.codex/instructions.md` – personal global guidance
+
 3. `codex.md` at repo root – shared project notes
 4. `codex.md` in cwd – sub‑package specifics
 
