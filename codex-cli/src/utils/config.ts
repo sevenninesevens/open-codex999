@@ -31,6 +31,13 @@ export const CONFIG_FILEPATH = CONFIG_JSON_FILEPATH;
 export const INSTRUCTIONS_FILEPATH = join(CONFIG_DIR, "instructions.md");
 // If present, this file is automatically appended to the user's instructions.
 export const RAG_FILEPATH = join(CONFIG_DIR, "rag", "RAG.md");
+// Name of the repository-level RAG file. If present at the Git root it will be
+// loaded automatically for every session.
+export const REPO_RAG_FILENAME = "RAG.md";
+
+// Maximum number of bytes loaded from any RAG file. Larger files are truncated
+// with a warning to avoid exceeding model context limits.
+export const RAG_MAX_BYTES = 32 * 1024; // 32 kB
 
 export const OPENAI_TIMEOUT_MS =
   parseInt(process.env["OPENAI_TIMEOUT_MS"] || "0", 10) || undefined;
@@ -136,6 +143,49 @@ function defaultModelsForProvider(provider: string): {
         agentic: "",
         fullContext: "",
       };
+  }
+}
+
+function findGitRoot(startDir: string): string | null {
+  let dir = resolvePath(startDir);
+  while (true) {
+    if (existsSync(join(dir, ".git"))) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return null;
+    }
+    dir = parent;
+  }
+}
+
+function loadRepoRag(cwd: string): { content: string; path: string | null } {
+  const gitRoot = findGitRoot(cwd);
+  if (!gitRoot) {
+    console.warn(`[codex] No Git repository found when looking for ${REPO_RAG_FILENAME}`);
+    return { content: "", path: null };
+  }
+  const ragPath = join(gitRoot, REPO_RAG_FILENAME);
+  if (!existsSync(ragPath)) {
+    console.warn(`[codex] ${REPO_RAG_FILENAME} not found at repository root (${ragPath})`);
+    return { content: "", path: null };
+  }
+  try {
+    const buf = readFileSync(ragPath);
+    if (buf.byteLength > RAG_MAX_BYTES) {
+      console.warn(
+        `[codex] ${REPO_RAG_FILENAME} at ${ragPath} exceeds ${RAG_MAX_BYTES} bytes – truncating.`,
+      );
+    }
+    const content = buf.slice(0, RAG_MAX_BYTES).toString("utf-8");
+    console.log(
+      `[codex] Loaded ${REPO_RAG_FILENAME} from ${ragPath} (${buf.byteLength} bytes)`,
+    );
+    return { content, path: ragPath };
+  } catch {
+    console.warn(`[codex] Failed to read ${REPO_RAG_FILENAME} at ${ragPath}`);
+    return { content: "", path: null };
   }
 }
 
@@ -290,10 +340,24 @@ export const loadInstructions = (
     ? readFileSync(instructionsFilePathResolved, "utf-8")
     : DEFAULT_INSTRUCTIONS;
 
-  // Additional RAG instructions are loaded from RAG_FILEPATH if present.
-  const ragInstructions = existsSync(RAG_FILEPATH)
-    ? readFileSync(RAG_FILEPATH, "utf-8")
-    : "";
+  const cwd = options.cwd ?? process.cwd();
+
+  // Additional RAG instructions are loaded from the repository root and from
+  // RAG_FILEPATH if present.
+  const repoRag = loadRepoRag(cwd).content;
+  let ragHome = "";
+  if (existsSync(RAG_FILEPATH)) {
+    const buf = readFileSync(RAG_FILEPATH);
+    if (buf.byteLength > RAG_MAX_BYTES) {
+      console.warn(
+        `[codex] ${RAG_FILEPATH} exceeds ${RAG_MAX_BYTES} bytes – truncating.`,
+      );
+    }
+    ragHome = buf.slice(0, RAG_MAX_BYTES).toString("utf-8");
+  }
+  const ragInstructions = [repoRag, ragHome]
+    .filter((s) => s && s.trim() !== "")
+    .join("\n\n");
 
   // Project doc support.
   const shouldLoadProjectDoc =
